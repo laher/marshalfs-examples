@@ -76,7 +76,7 @@ func Example_sqlx() {
 		return nil, os.ErrNotExist
 	}
 
-	marshalfs.New(json.Marshal, marshalfs.FileMap{"person/*": marshalfs.NewFileGenerator(personGenerator)})
+	marshalfs.New(json.Marshal, marshalfs.NewFileGenerator("person/*", personGenerator))
 
 	// Output:
 }
