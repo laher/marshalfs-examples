@@ -3,7 +3,7 @@
 
 .PHONY: test
 test: ## run tests (using go1.16beta1 for now)
-	go1.16beta1 test -v -race .
+	POSTGRES_DSN="postgres://marshalexamples:marshalexamples@127.0.0.1:6543/marshalexamples?sslmode=disable" go1.16beta1 test -v -race .
 
 .PHONY: help
 help:

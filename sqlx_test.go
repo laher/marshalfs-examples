@@ -2,9 +2,9 @@ package examples
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -21,7 +21,7 @@ func Example_sqlx() {
 	}
 
 	var schema = `
-	CREATE TABLE person (
+	CREATE TABLE IF NOT EXISTS person (
 	    first_name text,
 	    last_name text,
 	    email text
@@ -50,33 +50,39 @@ func Example_sqlx() {
 	tx.Commit()
 
 	personGenerator := func(filename string) (interface{}, error) {
+		log.Println("open: ", filename)
 		if !strings.HasPrefix(filename, "person") {
 			return nil, os.ErrNotExist
 		}
-		parts := filepath.SplitList(filename)
+		// somehow filepath.Split doesn't do what I want here
+		parts := strings.Split(filename, "/")
+		log.Println("parts: ", parts)
 		if len(parts) != 3 {
 			// should it be a different error?
 			return nil, os.ErrNotExist
 		}
-		lastName := parts[2]
-		firstName := parts[3]
-		// Query the database, storing result in a Person (wrapped in []interface{})
-		rows, err := db.Queryx("SELECT * FROM person where first_name = ? AND last_name = ?", firstName, lastName)
+		lastName := parts[1]
+		firstName := parts[2]
+		log.Println("last:", lastName, ", first:", firstName)
+		// Query the database, storing result in a Person
+		person := &Person{}
+		err := db.QueryRowx("SELECT * FROM person WHERE first_name = $1 AND last_name = $2", firstName, lastName).StructScan(person)
 		if err != nil {
 			return nil, err
 		}
-		person := &Person{}
-		for rows.Next() {
-			err := rows.StructScan(person)
-			if err != nil {
-				return nil, err
-			}
-			return person, nil
-		}
-		return nil, os.ErrNotExist
+		return person, nil
 	}
 
-	marshalfs.New(json.Marshal, marshalfs.NewFileGenerator("person/*", personGenerator))
-
+	log.Println("new fs")
+	fs := marshalfs.New(json.Marshal, marshalfs.NewFileGenerator("person/*/*", personGenerator))
+	f, err := fs.Open("person/Doe/John")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	b, err := ioutil.ReadAll(f)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Println(string(b))
 	// Output:
 }
